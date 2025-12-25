@@ -1,0 +1,3 @@
+function Rates toRate(Bit#(8) b);
+	return unpack(b);
+endfunction

@@ -1,0 +1,21 @@
+==============
+Module instance
+==============
+Reg#(Foo) bar <- mkFoo;
+---
+
+(source_file
+  (moduleinst
+    (type
+      (ucIdentifier)
+      (typeParam
+        (type
+          (ucIdentifier)
+	)
+      )
+    )
+    (varname
+      varName: (lcIdentifier ))
+    (moduleinstRHS (identifier))
+))
+

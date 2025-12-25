@@ -1,0 +1,7 @@
+
+let a=Format_st{cmd:ReadSR         , extension:True  ,address:A3, latency:True  , isread:True  , iswrite:False , ismem:False}    ;
+// Vector#(12,Format_st) command_table=vec(
+// 	Format_st{cmd:ReadSFDP       , extension:False ,address:A3, latency:True  , isread:True  , iswrite:False , ismem:False}      , // 0E (1B?)
+// 	// Format_st{cmd:ReadSR         , extension:True  ,address:A3, latency:True  , isread:True  , iswrite:False , ismem:False}      , // 1.B
+// 	Format_st{cmd:ReadSR         , extension:True  ,address:A3, latency:True  , isread:True  , iswrite:False , ismem:False}       // 1.B
+// )

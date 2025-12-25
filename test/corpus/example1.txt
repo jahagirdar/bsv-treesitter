@@ -1,0 +1,10 @@
+//XSPI_I#(Bit#(8)) io_din <- mkddr_i();
+//XSPI_I#(Bool) io_din <- mkddr_i();
+Vector#(3,Reg#(Bit#(8))) rate<-replicateM(mkRegA(unpack(0)));
+(*synthesize*)
+module mkFoo(Empty);
+QueueSize q_size=QueueSize{ wr_req_depth:  2, 
+    wr_resp_depth: 2, 
+    rd_req_depth:  2, 
+  rd_resp_depth: 2};
+endmodule

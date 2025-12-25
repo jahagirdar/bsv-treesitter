@@ -1,0 +1,24 @@
+typedef enum {
+ReadSFDP=8'h5a,
+	// ReadSR='H5,
+	// ReadFSR='h70,
+	// ReadCR='h85,
+	// ReadGPR='h96,
+	ReadRegister=8'h65,
+	WriteRegister=8'h71,
+
+	ReadMEM='h03,
+	WriteMEM='h02, //Program 
+
+	// WriteSR=1,
+	// WriteCR='h81,
+	// ClearFR='h50,
+	ResetDevice='h99,
+	ResetEnable='h66,
+	EnterDeepSleep='hB9,
+	ExitDeepSleep='hAB,
+	SetRate='h52,
+	OTPRead='h4b,
+	OTPWrite='h42
+}Commands deriving(Bits, Eq, FShow);
+
