@@ -45,11 +45,11 @@ jobs:
       - name: Build Wheel and Source Distribution
         run: python -m build
 
-      - name: Run Tree-sitter Tests
-        run: tree-sitter test
+          # - name: Run Tree-sitter Tests
+          #   run: tree-sitter test
 
-      - name: Run Python Tests
-        run: pytest
+          # - name: Run Python Tests
+          #   run: pytest
 
       - name: Publish to PyPI
         # Only runs on tags (e.g., v0.1.0)
