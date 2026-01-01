@@ -71,21 +71,21 @@ export default grammar({
     enumItem: $=> seq( field('key', $.ucIdentifier),optional(seq('=',field('value',$.value)))),
 
     interface: $=> seq('interface', field('interface_name',$.ucIdentifier),';',repeat(choice($.methoddef,$.actiondef,$.actionvaluedef,$.interfaceinst)),'endinterface'),
-    methoddef: $ => seq(optional($.attributes),'method',lbl_type($), field('name',$.identifier),optional(seq('(',')')),';'),
-    actiondef: $ => seq(optional($.attributes),'method','Action', $.identifier,'(',optional($.methodparamlist),')',';'),
-    methodparamlist: $ =>seq(mklist1(',',seq(lbl_type($), $.lcIdentifier))),
-    actionvaluedef: $ => seq(optional($.attributes),'method','ActionValue#','(',lbl_type($), ')',$.identifier,'(',optional($.methodparamlist),')',';'),
-    interfaceinst: $ => seq('interface',field('interface_name',$.ucIdentifier),optional($.typeParam),lbl_var($),';'),
+    methoddef: $ => seq(optional($.attributes),'method',lbl_type($), lbl_var($),optional(seq('(',')')),';'),
+    actiondef: $ => seq(optional($.attributes),'method','Action', lbl_var($),'(',optional($.methodparamlist),')',';'),
+    methodparamlist: $ =>seq(mklist1(',',seq(lbl_type($), lbl_var($)))),
+    actionvaluedef: $ => seq(optional($.attributes),'method','ActionValue#','(',lbl_type($), ')',lbl_var($),'(',optional($.methodparamlist),')',';'),
+    interfaceinst: $ => seq('interface',lbl_type($),lbl_var($),';'),
     moduleinst: $=> seq(lbl_type($),lbl_var($),'<-',$.moduleinstRHS,';'),
     moduleinstRHS: $ => seq($.identifier,optional(seq('(',choice($.integer,$.moduleinstRHS),')'))),
     moduleDef: $=> seq(optional($.attributes),'module',lbl_var($),'(',lbl_type($),')',';',repeat($.moduleStmt), 'endmodule'),
-    moduleStmt: $=> choice($.moduleinst,$.assignment),
+    moduleStmt: $=> choice($.moduleinst,$.assignment,$.functiondef),
     assignment: $=> seq(optional(choice(token('let'),lbl_type($))), lbl_var($), '=',$.assignrhs,';'),
     varrhs: $=> choice($.ucIdentifier,seq(lbl_var($),optional(seq('[',$._decimal,optional(seq(':',$._decimal)),']')))),
     functioncall: $ => seq(lbl_var($),'(',mklist(',',$.assignrhs),')'),
 
     typecast: $ => seq(lbl_type($),'{',mklist1(',',seq(field('key',$.identifier),':',field('value',$.assignrhs))),'}'),
-  functiondef: $ => seq(token('function'), optional(lbl_type($)), field('name',$.lcIdentifier),'(',$.methodparamlist,')',';',$.functionbody,token('endfunction')),
+  functiondef: $ => seq(token('function'), optional(lbl_type($)), lbl_var($),'(',$.methodparamlist,')',';',$.functionbody,token('endfunction')),
   functionbody: $=>  repeat1($.functionStatement),
     functionStatement: $=> choice($.assignment,$.returnStatement),
   returnStatement: $=> seq('return', $.assignrhs,';'),
@@ -97,7 +97,7 @@ export default grammar({
   _primary_expression: $ => choice(
   $.integer,
   $.string,
-  seq('(', $.assignrhs, ')') // Parentheses go here, not in the operation rule
+  seq('(', $.assignrhs, ')')
 ),
 
   assignrhs:$ => choice($._primary_expression,prec(3,$.typecast),prec(3,$.functioncall),prec(1,$.varrhs),$.functiondef,$.case,$.concat,prec(2,$.operation)),

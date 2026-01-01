@@ -1,15 +1,18 @@
 import os
 import ctypes
 from tree_sitter import Language, Parser, Query, QueryCursor
-from . import _binding
+import tree_sitter_bsv
+#from . import _binding
 
 class BSVProjectParser:
     def __init__(self, lib_path, search_paths):
-        lib = ctypes.cdll.LoadLibrary(lib_path)
-        language_function = getattr(lib, "tree_sitter_bsv")
-        language_function.restype = ctypes.c_void_p
-        self.language = Language(language_function())
+        self.language = Language(tree_sitter_bsv.language())
         self.parser = Parser(self.language)
+        # lib = ctypes.cdll.LoadLibrary(lib_path)
+        # language_function = getattr(lib, "tree_sitter_bsv")
+        # language_function.restype = ctypes.c_void_p
+        # self.language = Language(language_function())
+        # self.parser = Parser(self.language)
         self.search_paths = search_paths
         self.visited = set()
         self.results = {
