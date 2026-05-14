@@ -8,6 +8,51 @@ on:
     branches: [ "main" ]
 
 jobs:
+  release_meta:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+      node_publishable: ${{ steps.meta.outputs.node_publishable }}
+      has_npm_token: ${{ secrets.NPM_TOKEN != '' }} # Add this line
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        name: Validate semver tag + crate version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]; then
+            echo "Release tag must be semver like v1.2.3 (optional prerelease/build suffix), got: $TAG"
+            exit 1
+          fi
+
+          CRATE_VERSION="$(grep -E '^version\s*=\s*"' Cargo.toml | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [[ "$CRATE_VERSION" != "$VERSION" ]]; then
+            echo "Tag version ($VERSION) does not match Cargo.toml version ($CRATE_VERSION)"
+            exit 1
+          fi
+
+          if [[ -f package.json ]]; then
+            NODE_PUBLISHABLE=true
+            NODE_VERSION="$(node -p "require('./package.json').version")"
+            if [[ "$NODE_VERSION" != "$VERSION" ]]; then
+              echo "Tag version ($VERSION) does not match package.json version ($NODE_VERSION)"
+              exit 1
+            fi
+          else
+            NODE_PUBLISHABLE=false
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "node_publishable=$NODE_PUBLISHABLE" >> "$GITHUB_OUTPUT"
+
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -32,11 +77,8 @@ jobs:
       - name: Build and test wheels
         uses: pypa/cibuildwheel@v2.22.0
         env:
-          # This forces the creation of manylinux wheels PyPI accepts
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-          # Skip i686 builds due to header availability issues
           CIBW_SKIP: "*-manylinux_i686"
-          # Ensure test environment has a compatible tree-sitter
           CIBW_TEST_REQUIRES: tree-sitter>=0.25.2
 
       - uses: actions/upload-artifact@v4
@@ -61,3 +103,125 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish_crates:
+    name: Publish Rust crate to crates.io
+    needs: [publish, release_meta]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js (for parser generation)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate parser sources
+        run: |
+          npm install -g tree-sitter-cli
+          tree-sitter generate
+
+      - name: Publish crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo publish --allow-dirty; then
+            echo "Published crate successfully."
+          else
+            echo "cargo publish failed. Checking if version already exists on crates.io..."
+            if cargo search tree-sitter-bsv --limit 1 | grep -q "${{ needs.release_meta.outputs.version }}"; then
+              echo "Version already published; treating as success."
+            else
+              echo "Publish failed for a reason other than already-published version."
+              exit 1
+            fi
+          fi
+
+  publish_node:
+    name: Publish Node bindings to npm
+    needs: [publish, release_meta]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') &&
+     needs.release_meta.outputs.has_npm_token == 'true' && 
+     needs.release_meta.outputs.node_publishable == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Generate parser sources
+        run: |
+          npm install -g tree-sitter-cli
+          tree-sitter generate
+
+      - name: Publish npm package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm publish || npm publish --access public
+
+  release_bindings:
+    name: Build and attach multi-language binding artifacts
+    needs: [publish, release_meta]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+
+      - name: Generate parser
+        run: |
+          npm install -g tree-sitter-cli
+          tree-sitter generate
+
+      - name: Verify Go bindings
+        run: go test ./bindings/go
+
+      - name: Verify Rust bindings
+        run: cargo test
+
+      - name: Verify Swift bindings
+        run: swift test --package-path bindings/swift
+
+      - name: Bundle language binding source artifacts
+        run: |
+          mkdir -p release-artifacts
+          tar -czf release-artifacts/bindings-c.tar.gz bindings/c
+          tar -czf release-artifacts/bindings-go.tar.gz bindings/go
+          tar -czf release-artifacts/bindings-node.tar.gz bindings/node
+          tar -czf release-artifacts/bindings-rust.tar.gz bindings/rust
+          tar -czf release-artifacts/bindings-swift.tar.gz bindings/swift
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/*.tar.gz

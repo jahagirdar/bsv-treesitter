@@ -1,0 +1,51 @@
+{
+  "name": "tree-sitter-bsv",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for Bluespec SystemVerilog (BSV)",
+  "license": "MIT",
+  "author": "Vijayvithal <jahagirdar.vs@gmail.com>",
+  "homepage": "https://github.com/jahagirdar/bsv-treesitter",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jahagirdar/bsv-treesitter.git"
+  },
+  "keywords": [
+    "tree-sitter",
+    "tree-sitter-grammar",
+    "bsv",
+    "bluespec",
+    "parser"
+  ],
+  "type": "module",
+  "main": "bindings/node/index.js",
+  "types": "bindings/node/index.d.ts",
+  "exports": {
+    ".": "./bindings/node/index.js"
+  },
+  "files": [
+    "binding.gyp",
+    "bindings/node/*",
+    "src/**",
+    "queries/**",
+    "prebuilds/**"
+  ],
+  "dependencies": {
+    "node-addon-api": "^8.3.0",
+    "node-gyp-build": "^4.8.4"
+  },
+  "devDependencies": {
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-cli": "^0.25.10"
+  },
+  "scripts": {
+    "install": "node-gyp-build",
+    "build": "node-gyp rebuild",
+    "test": "node --test bindings/node/binding_test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
